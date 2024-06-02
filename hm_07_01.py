@@ -138,17 +138,14 @@ def main():
         elif command == "add":
             print(add_contact(args, book))
 
-        elif command == "change":
-            # реалізація
-            pass
+         elif command == "change":
+            print(change_phone(args, book))
 
         elif command == "phone":
-            # реалізація
-            pass
+            print(show_phone(args, book))
 
         elif command == "all":
-            # реалізація
-            pass
+            print(show_all_contacts(args, book))
 
         elif command == "add-birthday":
             print(add_birthday(args, book))
