@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import re
 
 class Field:
@@ -7,13 +7,13 @@ class Field:
 
 class Name(Field):
     def __init__(self, value):
-        self.value = value
+        super().__init__(value)
 
 class Phone(Field):
     def __init__(self, value):
         if not re.fullmatch(r'\d{10}', value):
             raise ValueError("Invalid phone number format. Use 10 digits.")
-        self.value = value
+        super().__init__(value)
 
 class Birthday(Field):
     def __init__(self, value):
@@ -21,6 +21,7 @@ class Birthday(Field):
             self.value = datetime.strptime(value, "%d.%m.%Y")
         except ValueError:
             raise ValueError("Invalid date format. Use DD.MM.YYYY")
+        super().__init__(value)
 
 class Record:
     def __init__(self, name):
@@ -32,11 +33,14 @@ class Record:
         self.phones.append(Phone(phone))
 
     def change_phone(self, old_phone, new_phone):
+        if not re.fullmatch(r'\d{10}', new_phone):
+            raise ValueError("Invalid phone number format. Use 10 digits.")
+        
         for phone in self.phones:
             if phone.value == old_phone:
                 phone.value = new_phone
                 return
-        raise ValueError("Phone number not found.")
+        raise ValueError("Old phone number not found.")
 
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
@@ -58,14 +62,28 @@ class AddressBook:
         return self.records.get(name, None)
 
     def get_upcoming_birthdays(self):
-        today = datetime.now().date()
+        today = date.today()
         upcoming_birthdays = []
         for record in self.records.values():
             if record.birthday:
                 birthday_this_year = record.birthday.value.replace(year=today.year).date()
+                if birthday_this_year < today:
+                    birthday_this_year = birthday_this_year.replace(year=today.year + 1)
                 if 0 <= (birthday_this_year - today).days <= 7:
-                    upcoming_birthdays.append(record)
+                    congratulation_date = adjust_for_weekend(birthday_this_year)
+                    upcoming_birthdays.append({"name": record.name.value, "congratulation_date": congratulation_date})
         return upcoming_birthdays
+
+def adjust_for_weekend(birthday):
+    if birthday.weekday() >= 5:  # If it's Saturday (5) or Sunday (6)
+        return find_next_weekday(birthday, 0)  # Move to next Monday
+    return birthday
+
+def find_next_weekday(start_date, weekday):
+    days_ahead = weekday - start_date.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+    return start_date + timedelta(days=days_ahead)
 
 def input_error(handler):
     def wrapper(*args, **kwargs):
@@ -155,7 +173,7 @@ def birthdays(args, book: AddressBook):
     upcoming_birthdays = book.get_upcoming_birthdays()
     if not upcoming_birthdays:
         return "No upcoming birthdays in the next week."
-    return "\n".join([f"{record.name.value}: {record.show_birthday()}" for record in upcoming_birthdays])
+    return "\n".join([f"{record['name']}: {record['congratulation_date'].strftime('%d.%m.%Y')}" for record in upcoming_birthdays])
 
 def parse_input(user_input):
     parts = user_input.split(maxsplit=1)
