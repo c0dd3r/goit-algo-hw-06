@@ -1,16 +1,13 @@
 from datetime import datetime, timedelta
 import re
 
-
 class Field:
     def __init__(self, value):
         self.value = value
 
-
 class Name(Field):
     def __init__(self, value):
         self.value = value
-
 
 class Phone(Field):
     def __init__(self, value):
@@ -18,14 +15,12 @@ class Phone(Field):
             raise ValueError("Invalid phone number format. Use 10 digits.")
         self.value = value
 
-
 class Birthday(Field):
     def __init__(self, value):
         try:
             self.value = datetime.strptime(value, "%d.%m.%Y")
         except ValueError:
             raise ValueError("Invalid date format. Use DD.MM.YYYY")
-
 
 class Record:
     def __init__(self, name):
@@ -36,12 +31,21 @@ class Record:
     def add_phone(self, phone):
         self.phones.append(Phone(phone))
 
+    def change_phone(self, old_phone, new_phone):
+        for phone in self.phones:
+            if phone.value == old_phone:
+                phone.value = new_phone
+                return
+        raise ValueError("Phone number not found.")
+
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
 
     def show_birthday(self):
         return self.birthday.value.strftime("%d.%m.%Y") if self.birthday else None
 
+    def show_phones(self):
+        return [phone.value for phone in self.phones]
 
 class AddressBook:
     def __init__(self):
@@ -63,7 +67,6 @@ class AddressBook:
                     upcoming_birthdays.append(record)
         return upcoming_birthdays
 
-
 def input_error(handler):
     def wrapper(*args, **kwargs):
         try:
@@ -72,10 +75,11 @@ def input_error(handler):
             return str(e)
     return wrapper
 
-
 @input_error
 def add_contact(args, book: AddressBook):
-    name, phone, *_ = args
+    if len(args) < 2:
+        raise IndexError("Not enough arguments for add command")
+    name, phone = args
     record = book.find(name)
     message = "Contact updated."
     if record is None:
@@ -86,9 +90,46 @@ def add_contact(args, book: AddressBook):
         record.add_phone(phone)
     return message
 
+@input_error
+def change_phone(args, book: AddressBook):
+    if len(args) < 3:
+        raise IndexError("Not enough arguments for change command")
+    name, old_phone, new_phone = args
+    record = book.find(name)
+    if record:
+        record.change_phone(old_phone, new_phone)
+        return f"Phone number for {name} changed from {old_phone} to {new_phone}."
+    else:
+        return "Contact not found."
+
+@input_error
+def show_phone(args, book: AddressBook):
+    if len(args) < 1:
+        raise IndexError("Not enough arguments for phone command")
+    name = args[0]
+    record = book.find(name)
+    if record:
+        phones = record.show_phones()
+        return f"Phones for {name}: " + ", ".join(phones) if phones else "No phone numbers."
+    else:
+        return "Contact not found."
+
+@input_error
+def show_all_contacts(args, book: AddressBook):
+    if not book.records:
+        return "Address book is empty."
+    contacts = []
+    for record in book.records.values():
+        contact_info = f"{record.name.value}: {', '.join(record.show_phones())}"
+        if record.birthday:
+            contact_info += f", Birthday: {record.show_birthday()}"
+        contacts.append(contact_info)
+    return "\n".join(contacts)
 
 @input_error
 def add_birthday(args, book: AddressBook):
+    if len(args) < 2:
+        raise IndexError("Not enough arguments for add-birthday command")
     name, birthday = args
     record = book.find(name)
     if record:
@@ -97,9 +138,10 @@ def add_birthday(args, book: AddressBook):
     else:
         return "Contact not found."
 
-
 @input_error
 def show_birthday(args, book: AddressBook):
+    if len(args) < 1:
+        raise IndexError("Not enough arguments for show-birthday command")
     name = args[0]
     record = book.find(name)
     if record:
@@ -108,7 +150,6 @@ def show_birthday(args, book: AddressBook):
     else:
         return "Contact not found."
 
-
 @input_error
 def birthdays(args, book: AddressBook):
     upcoming_birthdays = book.get_upcoming_birthdays()
@@ -116,17 +157,18 @@ def birthdays(args, book: AddressBook):
         return "No upcoming birthdays in the next week."
     return "\n".join([f"{record.name.value}: {record.show_birthday()}" for record in upcoming_birthdays])
 
-
 def parse_input(user_input):
-    return user_input.split(maxsplit=1)
-
+    parts = user_input.split(maxsplit=1)
+    command = parts[0]
+    args = parts[1].split() if len(parts) > 1 else []
+    return command, args
 
 def main():
     book = AddressBook()
     print("Welcome to the assistant bot!")
     while True:
         user_input = input("Enter a command: ")
-        command, *args = parse_input(user_input)
+        command, args = parse_input(user_input)
 
         if command in ["close", "exit"]:
             print("Good bye!")
@@ -138,7 +180,7 @@ def main():
         elif command == "add":
             print(add_contact(args, book))
 
-         elif command == "change":
+        elif command == "change":
             print(change_phone(args, book))
 
         elif command == "phone":
@@ -158,7 +200,6 @@ def main():
 
         else:
             print("Invalid command.")
-
 
 if __name__ == "__main__":
     main()
